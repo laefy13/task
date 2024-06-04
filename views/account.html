@@ -1,0 +1,120 @@
+<link rel="stylesheet" href="/main.css" />
+<link rel="stylesheet" href="/account.css" />
+<body>
+  <div
+    class="accounts-main flex justify-center items-center w-100 h-100 flex-col"
+  >
+    <h1><%= username %>'s Account</h1>
+    <div class="accounts-container flex flex-row justify-center items-center">
+      <div class="left-col">
+        <ul>
+          <li onclick="changeTab(0)">General</li>
+          <li onclick="changeTab(1)">Password</li>
+          <li onclick="changeTab(2)">Delete Account</li>
+        </ul>
+      </div>
+      <div class="right-col">
+        <div id="general-tab" class="flex">
+          <form class="flex flex-col justify-center items-center">
+            <div class="general-inputs flex flex-row">
+              <div class="flex flex-col">
+                <h3>Change Email:</h3>
+                <input
+                  type="text"
+                  id="email"
+                  name="email"
+                  class="input"
+                  placeholder="Enter new email"
+                />
+              </div>
+              <div class="flex flex-col">
+                <h3>Change Username:</h3>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  class="input"
+                  placeholder="Enter new username"
+                />
+              </div>
+            </div>
+            <div class="flex flex-col">
+              <h3>Current Password</h3>
+              <input
+                type="password"
+                id="general_current_password"
+                name="general_current_password"
+                class="input"
+                placeholder="Enter current password"
+                required
+              />
+            </div>
+            <button
+              class="button"
+              type="submit"
+              onclick="updateEmailUsername(event)"
+            >
+              Save Changes
+            </button>
+          </form>
+        </div>
+        <div id="password-tab">
+          <form class="flex flex-col justify-center items-center">
+            <div class="flex flex-col">
+              <h3>Change Password:</h3>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="input"
+                placeholder="Enter new password"
+                required
+              />
+            </div>
+
+            <div class="flex flex-col">
+              <h3>Current Password</h3>
+              <input
+                type="password"
+                id="password_current_password"
+                name="password_current_password"
+                class="input"
+                placeholder="Enter current password"
+                required
+              />
+            </div>
+            <button class="button" type="submit" onclick="updateAccount(event)">
+              Save Changes
+            </button>
+          </form>
+        </div>
+        <div
+          id="delete-tab"
+          class="flex flex-col items-center h-100 justify-center"
+        >
+          <div class="flex flex-col">
+            <h3>Current Password</h3>
+            <input
+              type="password"
+              id="delete_current_password"
+              name="delete_current_password"
+              class="input"
+              placeholder="Enter current password"
+              required
+            />
+          </div>
+          <button
+            class="delete-button"
+            class="button"
+            onclick="deleteAccount()"
+          >
+            Delete Account
+          </button>
+        </div>
+      </div>
+    </div>
+    <a href="/main">Go back to Main</a>
+  </div>
+</body>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="account.js"></script>

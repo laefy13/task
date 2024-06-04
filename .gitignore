@@ -1,0 +1,8 @@
+*.cpp
+*.out
+*.jpg
+.vscode/**
+node_modules/**
+.deployment
+.env
+

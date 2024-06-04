@@ -1,0 +1,41 @@
+<link rel="stylesheet" href="/main.css" />
+<link rel="stylesheet" href="/pre.css" />
+<link
+  href="https://fonts.googleapis.com/css?family=Rubik&display=swap"
+  rel="stylesheet"
+/>
+<script
+  src="https://kit.fontawesome.com/af562a2a63.js"
+  crossorigin="anonymous"
+></script>
+<div class="main flex flex-col items-center justify-center h-100">
+  <div
+    class="container index-container flex flex-col items-center justify-center"
+  >
+    <h1>Welcome!</h1>
+    <h4>
+      <ul>
+        <li>This is a website for task management system</li>
+        <li>
+          To use this, you need to register a new account or login to your
+          account
+        </li>
+      </ul>
+    </h4>
+    <div class="flex flex-row button-container space-between">
+      <a href="/login" class="button index-button">Login</a>
+      <a href="/register" class="button index-button">Register</a>
+    </div>
+  </div>
+</div>
+<% if(status !== ''){ %>
+<div class="success-modal" id="successModal" style="display: flex">
+  <div id="modal-content">
+    <div id="success-message" class="message flex justify-center items-center">
+      <%= status %>
+    </div>
+  </div>
+  <% } %>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/index.js"></script>

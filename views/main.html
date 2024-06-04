@@ -1,0 +1,476 @@
+<link rel="stylesheet" href="/main.css" />
+<link rel="stylesheet" href="/account.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap"
+  rel="stylesheet"
+/>
+<div id="mySidebar" class="sidebar">
+  <button class="openbtn" onclick="sidebar()">☰</button>
+  <div
+    class="sidebar-contents flex justify-center items-center flex-col"
+    id="sidebar-contents"
+  >
+    <ul id="sidebar-misc-contents">
+      <a href="/logout"><li>Logout</li></a>
+      <div onclick="openAccountModal()"><li>Account</li></div>
+      <div onclick="updateProject(0,1)"><li>Shared</li></div>
+      <div onclick="openProjectEditModal()"><li>Edit Proj.</li></div>
+    </ul>
+    <h2 class="text-white">Projects:</h2>
+    <ul id="projects" class="flex flex-col"></ul>
+  </div>
+</div>
+<div
+  class="main-container flex justify-center items-center flex-col mt-10vh"
+  id="main"
+>
+  <!-- <button onclick="successModal()">duh</button>
+  <h1>Home Page</h1>
+  <h1>Hello, <%= username %>!</h1> -->
+  <h2>Priority Levels:</h2>
+  <div class="flex flex-col">
+    <div class="flex flex-row justify-center items-center space-evenly">
+      <div class="flex flex-col justify-center items-center">
+        <div class="color-box" style="background-color: #9ea1d4"></div>
+        <h4>Low</h4>
+      </div>
+      <div class="flex flex-col justify-center items-center">
+        <div class="color-box" style="background-color: #a8d1d1"></div>
+        <h4>Medium</h4>
+      </div>
+      <div class="flex flex-col justify-center items-center">
+        <div class="color-box" style="background-color: #f1f7b5"></div>
+        <h4>High</h4>
+      </div>
+      <div class="flex flex-col justify-center items-center">
+        <div class="color-box" style="background-color: #ffb1b1"></div>
+        <h4>Critical</h4>
+      </div>
+      <div class="flex flex-col justify-center items-center">
+        <div class="color-box" style="background-color: #fd8a8a"></div>
+        <h4>Urgent</h4>
+      </div>
+    </div>
+
+    <div class="flex flex-row space-between">
+      <button class="add-button" onclick="openTaskModal()">Add Task</button>
+
+      <div
+        project-name="Main"
+        id="buttons"
+        class="buttons flex flex-row items-center justify-center"
+      >
+        <button
+          class="sort-button flex flex-row"
+          onclick="sortTable('svg-title')"
+        >
+          <div>Title</div>
+
+          <svg
+            class="w-6 h-6 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              id="svg-title"
+              fill-rule="evenodd"
+              d="M12.832 3.445a1 1 0 0 0-1.664 0l-4 6A1 1 0 0 0 8 11h8a1 1 0 0 0 .832-1.555l-4-6Zm-1.664 17.11a1 1 0 0 0 1.664 0l4-6A1 1 0 0 0 16 13H8a1 1 0 0 0-.832 1.555l4 6Z"
+              clip-rule="evenodd"
+              sort="neutral"
+            />
+          </svg>
+        </button>
+        <button
+          class="sort-button flex flex-row"
+          onclick="sortTable('svg-desc')"
+        >
+          <div>Desc</div>
+          <svg
+            class="w-6 h-6 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              id="svg-desc"
+              fill-rule="evenodd"
+              d="M12.832 3.445a1 1 0 0 0-1.664 0l-4 6A1 1 0 0 0 8 11h8a1 1 0 0 0 .832-1.555l-4-6Zm-1.664 17.11a1 1 0 0 0 1.664 0l4-6A1 1 0 0 0 16 13H8a1 1 0 0 0-.832 1.555l4 6Z"
+              clip-rule="evenodd"
+              sort="neutral"
+            />
+          </svg>
+        </button>
+        <button
+          class="sort-button flex flex-row"
+          onclick="sortTable('svg-status')"
+        >
+          <div>Status</div>
+          <svg
+            class="w-6 h-6 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              id="svg-status"
+              fill-rule="evenodd"
+              d="M12.832 3.445a1 1 0 0 0-1.664 0l-4 6A1 1 0 0 0 8 11h8a1 1 0 0 0 .832-1.555l-4-6Zm-1.664 17.11a1 1 0 0 0 1.664 0l4-6A1 1 0 0 0 16 13H8a1 1 0 0 0-.832 1.555l4 6Z"
+              clip-rule="evenodd"
+              sort="neutral"
+            />
+          </svg>
+        </button>
+        <button
+          class="sort-button flex flex-row"
+          onclick="sortTable('svg-due')"
+        >
+          <div>Date</div>
+          <svg
+            class="w-6 h-6 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              id="svg-due"
+              fill-rule="evenodd"
+              d="M12.832 3.445a1 1 0 0 0-1.664 0l-4 6A1 1 0 0 0 8 11h8a1 1 0 0 0 .832-1.555l-4-6Zm-1.664 17.11a1 1 0 0 0 1.664 0l4-6A1 1 0 0 0 16 13H8a1 1 0 0 0-.832 1.555l4 6Z"
+              clip-rule="evenodd"
+              sort="neutral"
+            />
+          </svg>
+        </button>
+        <button
+          class="sort-button flex flex-row"
+          onclick="sortTable('svg-prio')"
+        >
+          <div>Priority</div>
+          <svg
+            class="w-6 h-6 text-gray-800 dark:text-white"
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              id="svg-prio"
+              fill-rule="evenodd"
+              d="M12.832 3.445a1 1 0 0 0-1.664 0l-4 6A1 1 0 0 0 8 11h8a1 1 0 0 0 .832-1.555l-4-6Zm-1.664 17.11a1 1 0 0 0 1.664 0l4-6A1 1 0 0 0 16 13H8a1 1 0 0 0-.832 1.555l4 6Z"
+              clip-rule="evenodd"
+              sort="neutral"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="tasks-today"></div>
+    <div class="tasks-container-today flex flex-wrap"></div>
+    <div class="tasks-other"></div>
+    <div class="tasks-container flex flex-wrap"></div>
+  </div>
+</div>
+<!-- modals -->
+
+<div id="taskModal" class="modal items-center justify-center">
+  <div class="modal-content rounded">
+    <span class="close" onclick="closeTaskModal()">&times;</span>
+    <h2 id="modal-title">Add task</h2>
+    <div class="error" id="task-error"></div>
+    <form>
+      <div class="flex flex-col">
+        <label for="title">Title:</label>
+        <input
+          class="input"
+          class="rounded"
+          type="text"
+          id="title"
+          name="title"
+          required
+        />
+      </div>
+      <br />
+      <div class="flex flex-col">
+        <label for="description">Description:</label>
+        <input
+          class="input"
+          class="rounded"
+          type="text"
+          id="description"
+          name="description"
+          required
+        />
+      </div>
+      <br />
+      <div class="flex flex-col">
+        <label for="due_date">Due date:</label>
+        <input
+          class="input"
+          class="rounded"
+          type="datetime-local"
+          id="due_date"
+          name="due_date"
+          required
+        />
+      </div>
+      <br />
+      <div class="flex flex-row space-evenly">
+        <div class="flex flex-col w-30">
+          <label for="priority">Priority:</label>
+          <select
+            class="input"
+            id="priority"
+            name="priority"
+            class="rounded"
+            required
+          >
+            <option value="1">Low</option>
+            <option value="2">Medium</option>
+            <option value="3">High</option>
+            <option value="4">Critical</option>
+            <option value="5">Urgent</option>
+          </select>
+
+          <br />
+        </div>
+        <div class="flex flex-col w-30">
+          <label for="project">Project:</label>
+          <select
+            class="input"
+            id="project"
+            name="project"
+            class="rounded"
+            required
+          ></select>
+        </div>
+      </div>
+      <button
+        type="submit"
+        onclick="addTask(event)"
+        class="button"
+        id="task-button"
+      >
+        Submit
+      </button>
+    </form>
+  </div>
+</div>
+<div id="shareModal" class="modal items-center justify-center" data-task-id="">
+  <div class="modal-content rounded">
+    <span class="close" onclick="closeShareModal()">&times;</span>
+    <h2 id="modal-title">Share task</h2>
+    <div class="error" id="share-error"></div>
+    <form>
+      <div class="flex flex-col">
+        <label for="current_shared">Currently shared to:</label>
+        <ul id="current_shared"></ul>
+      </div>
+      <br />
+      <div class="flex flex-row space-between">
+        <select
+          class="input share_with"
+          id="share_with"
+          name="share_with"
+        ></select>
+        <button
+          type="submit"
+          onclick="shareTask(event)"
+          class="button share-button"
+          id="share-button"
+        >
+          Share
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<div id="projectModal" class="modal" data-task-id="">
+  <div class="modal-content rounded">
+    <span class="close" onclick="closeProjectModal()">&times;</span>
+
+    <h2>New project</h2>
+    <div class="error" id="project-error"></div>
+    <form>
+      <div class="flex flex-col">
+        <label for="projectName">Project Name:</label>
+        <input
+          class="input"
+          class="rounded"
+          type="text"
+          id="projectName"
+          name="projectName"
+          required
+        />
+      </div>
+      <br />
+      <button class="button" type="submit" onclick="addProject(event)">
+        Add
+      </button>
+    </form>
+  </div>
+</div>
+<div id="projectEditModal" class="modal" data-task-id="">
+  <div class="modal-content rounded">
+    <span class="close" onclick="closeProjectEditModal()">&times;</span>
+
+    <h2>Update Projects</h2>
+    <div class="error" id="project-edit-error"></div>
+    <form>
+      <div class="flex flex-col" id="project-list"></div>
+      <button class="button" type="submit" onclick="editProjects(event)">
+        Update Projects
+      </button>
+    </form>
+  </div>
+</div>
+<div id="accountModal" class="modal">
+  <div class="modal-content rounded">
+    <span class="close" onclick="closeAccountModal()">&times;</span>
+    <div class="flex flex-row space-between items-center">
+      <h1><%= username %>'s Account</h1>
+      <div id="status">
+        Status:
+        <div class="pending">None</div>
+      </div>
+    </div>
+
+    <div class="accounts-container flex flex-row justify-center items-center">
+      <div class="left-col">
+        <ul>
+          <li onclick="changeTab(0)">General</li>
+          <li onclick="changeTab(1)">Password</li>
+          <li onclick="changeTab(2)">Delete Account</li>
+        </ul>
+      </div>
+      <div class="right-col">
+        <div id="general-tab" class="flex">
+          <form class="flex flex-col justify-center items-center">
+            <div class="general-inputs flex flex-row">
+              <div class="flex flex-col">
+                <h3>Change Email:</h3>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  class="input"
+                  placeholder="Enter new email"
+                />
+              </div>
+              <div class="flex flex-col">
+                <h3>Change Username:</h3>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  class="input"
+                  placeholder="Enter new username"
+                />
+              </div>
+            </div>
+            <div class="flex flex-col">
+              <h3>Current Password</h3>
+              <input
+                type="password"
+                id="general_current_password"
+                name="general_current_password"
+                class="input"
+                placeholder="Enter current password"
+                required
+              />
+            </div>
+            <button
+              class="button"
+              type="submit"
+              onclick="updateEmailUsername(event)"
+            >
+              Save Changes
+            </button>
+          </form>
+        </div>
+        <div id="password-tab">
+          <form class="flex flex-col justify-center items-center">
+            <div class="flex flex-col">
+              <h3>Change Password:</h3>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                class="input"
+                placeholder="Enter new password"
+                required
+              />
+            </div>
+
+            <div class="flex flex-col">
+              <h3>Current Password</h3>
+              <input
+                type="password"
+                id="password_current_password"
+                name="password_current_password"
+                class="input"
+                placeholder="Enter current password"
+                required
+              />
+            </div>
+            <button
+              class="button"
+              type="submit"
+              onclick="updatePassword(event)"
+            >
+              Save Changes
+            </button>
+          </form>
+        </div>
+        <div
+          id="delete-tab"
+          class="flex flex-col items-center h-100 justify-center"
+        >
+          <div class="flex flex-col">
+            <h3>Current Password</h3>
+            <input
+              type="password"
+              id="delete_current_password"
+              name="delete_current_password"
+              class="input"
+              placeholder="Enter current password"
+              required
+            />
+          </div>
+          <button
+            class="delete-button"
+            class="button"
+            onclick="deleteAccount()"
+          >
+            Delete Account
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="success-modal" id="successModal">
+  <div id="modal-content">
+    <div id="success-message" class="message flex justify-center items-center">
+      asdaszxczxcx
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="main.js"></script>
+<script src="account.js"></script>
