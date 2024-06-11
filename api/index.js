@@ -1,14 +1,14 @@
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
-const port = 8080;
+const port = 3000;
 const session = require("express-session");
 const mariadb = require("mariadb");
 const MySQLStore = require("express-mysql-session")(session);
 const bcrypt = require("bcryptjs");
 const { Connection, Request } = require("tedious");
-const SQLSessionStore = require("./sqlSession");
-const middleware = require("./middleware");
+const SQLSessionStore = require("../sqlSession");
+const middleware = require("../middleware");
 require("dotenv").config();
 // express-validator
 
@@ -40,21 +40,7 @@ async function connectWithRetry(retryInterval = 5000) {
   }
 }
 
-async function checkConnection() {
-  try {
-    await pool.request().query("SELECT 1");
-    console.log("Connection is active");
-  } catch (err) {
-    console.error(
-      "Lost connection to the database. Attempting to reconnect..."
-    );
-    connectWithRetry();
-  }
-}
-
 connectWithRetry();
-
-setInterval(checkConnection, 900000);
 
 app.engine("html", require("ejs").renderFile);
 app.set("view engine", "html");
@@ -70,10 +56,7 @@ app.use(
     saveUninitialized: false,
   })
 );
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Something went wrong!");
-});
+
 app.get("/", middleware.validateIndexQuery, (req, res) => {
   const message = req.query.message;
   console.log(message);
@@ -257,6 +240,60 @@ app.get("/api/tasks/:projectName", middleware.validateGetTasks, (req, res) => {
       res.status(500).json({ error: "An error occurred" });
     });
 });
+
+// app.get("/api/tasks/today", (req, res) => {
+//   if (validataUser(req) === 0) {
+//     res.status(400).send("Invalid user id and user name");
+//   }
+//   updateProgress();
+//   const sortOption = req.query.sort;
+//   var sortBy = req.query.sortBy;
+//   if (sortBy.startsWith("svg")) {
+//     switch (sortBy) {
+//       case "svg-desc":
+//         sortBy = "taskDescription";
+//         break;
+//       case "svg-status":
+//         sortBy = "taskProgress";
+//         break;
+//       case "svg-due":
+//         sortBy = "taskDue";
+//         break;
+//       case "svg-prio":
+//         sortBy = "taskPriority";
+//         break;
+//       default:
+//         sortBy = "taskName";
+//         break;
+//     }
+//   }
+//   let projectName = req.params.projectName;
+//   var otherDaysTasks;
+//   var todayTasks;
+//   const query1 = `SELECT * FROM tbltasks WHERE accountsId =  ${req.session.user.user_id} AND taskProject = '${projectName}' AND DATE(taskDue) `;
+//   const query2 = `!= CURRENT_DATE ORDER BY ${sortBy} ${sortOption.toUpperCase()} `;
+//   // console.log(query);
+//   pool
+//     .query(query1 + query2)
+//     .then((results) => {
+//       // console.log(results);
+//       otherDaysTasks = results;
+//     })
+//     .catch((error) => {
+//       console.error(error);
+//     });
+//   pool
+//     .query(query1 + query2.slice(1))
+//     .then((results) => {
+//       // console.log(results);
+//       todayTasks = results;
+//     })
+//     .catch((error) => {
+//       console.error(error);
+//     });
+
+//   res.json({ today: todayTasks, other: otherDaysTasks });
+// });
 
 app.get("/api/projects", (req, res) => {
   if (validataUser(req) === 0) {

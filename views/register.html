@@ -1,58 +1,69 @@
-<link rel="stylesheet" href="/main.css" /><link
-  rel="stylesheet"
-  href="/pre.css"
-/>
-<div class="main flex flex-col items-center justify-center h-100">
-  <div class="container flex flex-col items-center justify-center">
-    <div class="w-90">
-      <a href="/"
-        ><br /><svg
-          class="w-6 h-6 text-gray-800 dark:text-white"
-          aria-hidden="true"
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          fill="none"
-          viewBox="0 0 24 24"
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register</title>
+
+    <link rel="stylesheet" href="/main.css" />
+    <link rel="stylesheet" href="/pre.css" />
+  </head>
+  <body>
+    <div class="main flex flex-col items-center justify-center h-100">
+      <div
+        class="container flex flex-col items-center justify-center register-container"
+      >
+        <div class="w-90">
+          <a href="/"
+            ><br /><svg
+              class="w-6 h-6 text-gray-800 dark:text-white"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="m15 19-7-7 7-7"
+              />
+            </svg>
+          </a>
+        </div>
+        <h1>REGISTER</h1>
+        <div class="error"><%= error %></div>
+        <form
+          class="form-container flex flex-col items-center justify-center"
+          action="/register"
+          method="POST"
         >
-          <path
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="m15 19-7-7 7-7"
+          <input
+            class="input"
+            type="email"
+            name="email"
+            placeholder="Email"
+            required
           />
-        </svg>
-      </a>
+          <input
+            class="input"
+            type="text"
+            name="username"
+            placeholder="Username"
+            required
+          /><input
+            class="input"
+            type="password"
+            name="password"
+            placeholder="Password"
+            required
+          />
+          <button class="register-button" type="submit">Register</button>
+        </form>
+      </div>
     </div>
-    <h1>REGISTER</h1>
-    <div class="error"><%= error %></div>
-    <form
-      class="flex flex-col items-center justify-center"
-      action="/register"
-      method="POST"
-    >
-      <input
-        class="input"
-        type="email"
-        name="email"
-        placeholder="Email"
-        required
-      />
-      <input
-        class="input"
-        type="text"
-        name="username"
-        placeholder="Username"
-        required
-      /><input
-        class="input"
-        type="password"
-        name="password"
-        placeholder="Password"
-        required
-      />
-      <button class="register-button" type="submit">Register</button>
-    </form>
-  </div>
-</div>
+  </body>
+</html>

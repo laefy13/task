@@ -5,7 +5,7 @@ $(document).ready(function () {
 function exitModal() {
   if (document.getElementById("successModal")) {
     setTimeout(() => {
-      console.log("should start sliding out");
+      // console.log("should start sliding out");
       var modal = document.getElementById("successModal");
       var message = document.getElementById("success-message");
       message.style.animation = "slideOut 1s forwards";
@@ -17,7 +17,7 @@ function exitModal() {
         },
         { once: true }
       );
-      console.log("sliding out done");
+      // console.log("sliding out done");
     }, 5000);
   }
 }

@@ -69,7 +69,7 @@ function deleteAccount() {
       current_password: current_password,
     },
     function (data) {
-      console.log(data);
+      // console.log(data);
       if (data.status == "success") {
         window.location.href = "/logout";
       } else if (data.error) {

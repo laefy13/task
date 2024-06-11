@@ -1,23 +1,3 @@
-// function taskGenerator(task) {
-//   const taskString = encodeURIComponent(JSON.stringify(task));
-//   return `<tr class='task-row fadeIn' data-task-id='${task.taskId}'><td>${
-//     task.taskName
-//   }</td><td>${task.taskDescription}</td>
-//     <td><label id="labelProgress_${task.taskId}" for="cbProgress_${
-//     task.taskId
-//   }" class="checkbox-container">${progressString(
-//     task.taskProgress
-//   )}</label><input type="checkbox" id="cbProgress_${
-//     task.taskId
-//   }" onclick="updateProgress(this,${task.taskId})" ${
-//     task.taskProgress == 1
-//       ? "checked"
-//       : task.taskProgress == 0
-//       ? ""
-//       : "disabled"
-//   }></input></td><td>${task.taskDue}</td><td>${task.taskPriority}</td>
-//     <td><button class='delete-button' onclick='openEditTaskModal("${taskString}")'>Edit Task</button></td></tr>`;
-// }
 function getColor(priority) {
   switch (priority) {
     case 1:
@@ -53,9 +33,9 @@ function taskGenerator(task) {
       <div class='flex justify-center items-center'>
         <label id="labelProgress_${task.taskId}" for="cbProgress_${
     task.taskId
-  }" class="checkbox-container"><h4>${progressString(
+  }" class="checkbox-container">${progressString(
     task.taskProgress
-  )}</h4></label><input type="checkbox" id="cbProgress_${
+  )}</label><input type="checkbox" id="cbProgress_${
     task.taskId
   }" onclick="updateProgress(this,${task.taskId})" ${
     task.taskProgress == 1
@@ -136,18 +116,18 @@ function stringPriority(priority) {
   }
 }
 function openEditTaskModal(task) {
-  // console.log("tf");
+  // // console.log("tf");
 
   updateTaskModal("Update Task", task, updateTask);
   openTaskModal();
 }
 function updateTaskModal(title, task, func) {
-  console.log(task);
+  // console.log(task);
   if (typeof task === "string") {
     task = JSON.parse(decodeURIComponent(task));
-    // console.log(task);
+    // // console.log(task);
   }
-  console.log(typeof task);
+  // console.log(typeof task);
   document.getElementById("modal-title").textContent = title; //'Update Task'
   document.getElementById("title").value = task.taskName;
   document.getElementById("description").value = task.taskDescription;
@@ -167,9 +147,9 @@ function updateTaskModal(title, task, func) {
     .setAttribute("data-task-id", task.taskId);
 }
 function deleteTask(task_id) {
-  console.log("delete");
+  // console.log("delete");
   $.post(`/api/task/delete/${task_id}`, function (data) {
-    console.log(data);
+    // console.log(data);
 
     $(".tasks[data-task-id='" + task_id + "']").remove();
   });
@@ -177,11 +157,11 @@ function deleteTask(task_id) {
 function progressString(progress) {
   switch (progress) {
     case 0:
-      return "In progress";
+      return "<h4 style='color:white'>In progress</h4>";
     case 1:
-      return "Completed";
+      return "<h4 style='color:green'>Completed</h4>";
     case 2:
-      return "Overdue";
+      return "<h4 style='color:red'>Overdue</h4>";
   }
 }
 function updateTask(event) {
@@ -227,9 +207,9 @@ function addTask(event) {
     updateError("task-error", "Due Date cannot be empty/past date");
     return;
   }
-  // console.log(due_date);
+  // // console.log(due_date);
 
-  // console.log("add");
+  // // console.log("add");
   $.post(
     "/api/task/add",
     {
@@ -240,7 +220,7 @@ function addTask(event) {
       project: project,
     },
     function (data) {
-      console.log(data);
+      // console.log(data);
       if (data.status) {
         updateProject(project, 0);
         // getTasks(project, "asc", "taskId");
@@ -253,7 +233,7 @@ function addTask(event) {
             taskDescription: "",
             taskDue: "",
             taskPriority: 1,
-            projectId: "Main",
+            taskProject: "Main",
           },
           addTask
         );
@@ -270,23 +250,23 @@ function addProject(event) {
   event.preventDefault();
   var projectName = document.getElementById("projectName").value;
 
-  console.log("add");
+  // console.log("add");
   $.post(
     "/api/project/add",
     {
       projectName: projectName,
     },
     function (data) {
-      console.log(data);
+      // console.log(data);
       if (data.status) {
         closeProjectModal();
         getProjects();
         successModal("Project Name Added");
       } else if (data.error) {
-        console.log("should update error");
+        // console.log("should update error");
         updateError("project-error", data.error);
       } else {
-        console.log("should update error");
+        // console.log("should update error");
         updateError("project-error", "Project not added");
       }
     }
@@ -302,7 +282,7 @@ function newRow(data) {
   else {
     no_tasks.append('<h1 class="no-tasks">Tasks for other days</h1>');
     data.forEach((task) => {
-      // console.log(task);
+      // // console.log(task);
       tasks_container.append(taskGenerator(task));
     });
   }
@@ -324,15 +304,26 @@ function newRowToday(data) {
 }
 
 function getTasks(projectName, sortOption, sortBy) {
-  $.get(
-    `/api/tasks/${projectName}?sort=${sortOption}&sortBy=${sortBy}`,
-    function (data) {
-      console.log("tasks", data);
-      newRowToday(data.today);
-      newRow(data.other);
-      return;
-    }
-  );
+  const el = document.getElementById("main-box");
+  if (el.getAttribute("loading") !== "1") {
+    el.setAttribute("loading", "1");
+
+    document.getElementById("loading-div").style.display = "flex";
+
+    $.get(
+      `/api/tasks/${projectName}?sort=${sortOption}&sortBy=${sortBy}`,
+      function (data) {
+        // console.log("tasks", data);
+
+        el.setAttribute("loading", "0");
+        document.getElementById("loading-div").style.display = "none";
+
+        newRowToday(data.today);
+        newRow(data.other);
+        return;
+      }
+    );
+  }
 }
 function getProjects() {
   $.get("/api/projects", function (data) {
@@ -377,7 +368,7 @@ function getProjects() {
       projectEditList.innerHTML = `<h1>No Projects</h1>`;
     }
 
-    console.log(data);
+    // console.log(data);
     return;
   });
 }
@@ -392,13 +383,51 @@ function updateProject(projectName, triggerSideBar) {
 }
 $(document).ready(getTasks("Main", "asc", "taskId"), getProjects());
 function sidebar() {
-  if (document.getElementById("mySidebar").offsetWidth < 250) {
-    document.getElementById("mySidebar").style.width = "250px";
-    document.getElementById("main").style.marginLeft = "250px";
+  let screenWidth;
+  try {
+    screenWidth = window.innerWidth;
+  } catch {
+    screenWidth = 1000;
+  }
+  // console.log(screenWidth);
+  // console.log(`sidebar:${document.getElementById("mySidebar").offsetWidth}`);
+  // console.log(document.getElementById("main").style.width);
+  // console.log(document.getElementById("main").style);
+
+  if (
+    document.getElementById("mySidebar").offsetWidth < 150 &&
+    screenWidth > 768 &&
+    (document.getElementById("sidebar-contents").style.visibility ===
+      "hidden" ||
+      document.getElementById("sidebar-contents").style.visibility === "")
+  ) {
+    document.getElementById("mySidebar").style.width = "150px";
+    document.getElementById("main").style.marginLeft = "150px";
+    document.getElementById("sidebar-contents").style.visibility = "visible";
+  } else if (
+    document.getElementById("mySidebar").offsetWidth >= 150 &&
+    screenWidth > 768 &&
+    document.getElementById("sidebar-contents").style.visibility === "visible"
+  ) {
+    document.getElementById("mySidebar").style.width = "75px";
+    document.getElementById("main").style.marginLeft = "0";
+    document.getElementById("sidebar-contents").style.visibility = "hidden";
+  } else if (
+    document.getElementById("mySidebar").offsetWidth <= 40 &&
+    screenWidth <= 768 &&
+    (document.getElementById("sidebar-contents").style.visibility ===
+      "hidden" ||
+      document.getElementById("sidebar-contents").style.visibility === "")
+  ) {
+    document.getElementById("mySidebar").style.width = "125px";
+    document.getElementById("main").style.marginLeft = "125px";
+    document.getElementById("main").style.width = "calc(100% - 125px)";
+    // console.log(`edited: ${document.getElementById("main").style.width}`);
     document.getElementById("sidebar-contents").style.visibility = "visible";
   } else {
-    document.getElementById("mySidebar").style.width = "75px";
-    document.getElementById("main").style.marginLeft = "75px";
+    document.getElementById("mySidebar").style.width = "40px";
+    document.getElementById("main").style.marginLeft = "0";
+    document.getElementById("main").style.width = "100%";
     document.getElementById("sidebar-contents").style.visibility = "hidden";
   }
 }
@@ -440,20 +469,20 @@ function closeShareModal() {
 
 function getUsers(taskId) {
   $.get(`/api/users/${taskId}`, function (data) {
-    console.log(data);
+    // console.log(data);
     if (data.notShared && data.shared) {
       accountIdSelect = document.getElementById("share_with");
       sharedList = document.getElementById("current_shared");
       accountIdSelect.innerHTML = "";
       sharedList.innerHTML = "";
 
-      data.notShared.forEach((account) => {
+      data.notShared.recordset.forEach((account) => {
         accountIdSelect.options[accountIdSelect.options.length] = new Option(
           account.accountUsername,
           account.accountId
         );
       });
-      data.shared.forEach((account) => {
+      data.shared.recordset.forEach((account) => {
         sharedList.innerHTML += `<div class="shared-user flex space-between "><li>${
           account.accountUsername
         }</li><button onclick="removeUser(event,${account.accountId},${
@@ -461,13 +490,13 @@ function getUsers(taskId) {
         })" class="remove-user">${trashSVG()}</button></div>`;
       });
     } else {
-      console.log("hu");
+      // console.log("hu");
     }
   });
 }
 
 function removeUser(event, accountId, taskId) {
-  console.log(accountId, taskId);
+  // console.log(accountId, taskId);
   event.preventDefault();
   $.post(
     "/api/share/delete",
@@ -476,9 +505,10 @@ function removeUser(event, accountId, taskId) {
       taskId: taskId,
     },
     function (data) {
-      console.log(data);
+      // console.log(data);
       if (data.status) {
         getUsers(taskId);
+        successModal("User removed");
       } else if (data.error) {
         updateError("share-error", data.error);
       } else {
@@ -501,7 +531,7 @@ function shareTask(event) {
       accountId: accountId,
     },
     function (data) {
-      console.log(data);
+      // console.log(data);
       if (data.status) getUsers(taskId);
       else updateError("share-error", data.error);
     }
@@ -509,33 +539,36 @@ function shareTask(event) {
 }
 
 function sortTable(sortBy) {
-  const sortElement = document.getElementById(sortBy);
+  const el = document.getElementById("main-box");
+  if (el.getAttribute("loading") !== "1") {
+    const sortElement = document.getElementById(sortBy);
 
-  const projectName = document
-    .getElementById("buttons")
-    .getAttribute("project-name");
+    const projectName = document
+      .getElementById("buttons")
+      .getAttribute("project-name");
 
-  resetSortButtons(sortBy);
-  resetTable();
-  switch (sortElement.getAttribute("sort")) {
-    case "desc": {
-      sortElement.setAttribute(
-        "d",
-        "M5.575 13.729C4.501 15.033 5.43 17 7.12 17h9.762c1.69 0 2.618-1.967 1.544-3.271l-4.881-5.927a2 2 0 0 0-3.088 0l-4.88 5.927Z"
-      );
+    resetSortButtons(sortBy);
+    resetTable();
+    switch (sortElement.getAttribute("sort")) {
+      case "desc": {
+        sortElement.setAttribute(
+          "d",
+          "M5.575 13.729C4.501 15.033 5.43 17 7.12 17h9.762c1.69 0 2.618-1.967 1.544-3.271l-4.881-5.927a2 2 0 0 0-3.088 0l-4.88 5.927Z"
+        );
 
-      sortElement.setAttribute("sort", "asc");
-      getTasks(projectName, "asc", sortBy);
-      break;
-    }
-    default: {
-      sortElement.setAttribute(
-        "d",
-        "M18.425 10.271C19.499 8.967 18.57 7 16.88 7H7.12c-1.69 0-2.618 1.967-1.544 3.271l4.881 5.927a2 2 0 0 0 3.088 0l4.88-5.927Z"
-      );
-      sortElement.setAttribute("sort", "desc");
-      getTasks(projectName, "desc", sortBy);
-      break;
+        sortElement.setAttribute("sort", "asc");
+        getTasks(projectName, "asc", sortBy);
+        break;
+      }
+      default: {
+        sortElement.setAttribute(
+          "d",
+          "M18.425 10.271C19.499 8.967 18.57 7 16.88 7H7.12c-1.69 0-2.618 1.967-1.544 3.271l4.881 5.927a2 2 0 0 0 3.088 0l4.88-5.927Z"
+        );
+        sortElement.setAttribute("sort", "desc");
+        getTasks(projectName, "desc", sortBy);
+        break;
+      }
     }
   }
   // down
@@ -592,11 +625,11 @@ function updateProgress(checkbox, taskId) {
   if (checkbox.checked) {
     taskProgress = 1;
   }
-  console.log(`updating cbProgress_${taskId}`);
+  // console.log(`updating cbProgress_${taskId}`);
   var progressStringElement = document.getElementById(
     `labelProgress_${taskId}`
   );
-  progressStringElement.innerText = progressString(taskProgress);
+  progressStringElement.innerHTML = progressString(taskProgress);
   $.post("/api/tasks/update", {
     taskId: taskId,
     taskProgress: taskProgress,
@@ -604,14 +637,14 @@ function updateProgress(checkbox, taskId) {
 }
 
 function openMoreInfo(taskId) {
-  console.log(taskId);
+  // console.log(taskId);
   const infoElement = document.querySelector(
     `.hidden-info[info-id='${taskId}']`
   );
   infoElement.classList.toggle("show");
 }
 function hideMoreInfo(taskId) {
-  console.log(taskId);
+  // console.log(taskId);
   const infoElement = document.querySelector(
     `.hidden-info[info-id='${taskId}']`
   );
@@ -620,19 +653,20 @@ function hideMoreInfo(taskId) {
 
 function successModal(message) {
   var modal = document.getElementById("successModal");
+  // console.log(`display: ${modal.style.display}`);
   if (modal.style.display === "flex") {
     document.getElementById("success-message").innerText = message;
     return;
   }
   modal.style.display = "flex";
   document.getElementById("success-message").innerText = message;
-  console.log("close in 2000");
+  // console.log("close in 2000");
   setTimeout(closeSuccessModal, 5000);
-  console.log("erm");
+  // console.log("erm");
 }
 
 function closeSuccessModal() {
-  console.log("should start sliding out");
+  // console.log("should start sliding out");
   var modal = document.getElementById("successModal");
   var message = document.getElementById("success-message");
   message.style.animation = "slideOut 1s forwards";
@@ -644,7 +678,7 @@ function closeSuccessModal() {
     },
     { once: true }
   );
-  console.log("sliding out done");
+  // console.log("sliding out done");
   // modal.style.display = "none";
 }
 function updateError(elementId, message) {
@@ -697,10 +731,10 @@ function editProjects(event) {
       projects.push(objectInput);
     }
   });
-  console.log(projects);
+  // console.log(projects);
   if (projects.length > 0) {
     $.post("/api/project/update", { inputs: projects }, function (data) {
-      console.log("data", data);
+      // console.log("data", data);
       let errorMessages = "";
       if (data.update) {
         errorMessages += data.update;

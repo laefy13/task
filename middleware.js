@@ -1,6 +1,6 @@
 const xss = require("xss");
 const validator = require("validator");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const hashPassword = async (plainPassword) => {
   const saltRounds = 10;
   try {
@@ -204,7 +204,7 @@ const validateAccountInputs = (req, res, next) => {
   } else {
     const { username, password } = req.body;
     inputFields = { username, password };
-    errorMessage = `Username and password are required.username = ${username} | password = ${password} | obdy = ${req.body}`;
+    errorMessage = `Username and password are required`;
   }
 
   const { username, password, email } = inputFields;
@@ -216,10 +216,10 @@ const validateAccountInputs = (req, res, next) => {
     typeof password !== "string" ||
     (email && typeof email !== "string")
   ) {
-    // res.status(400).render("login", {
-    //   error: errorMessage,
-    // });
-    res.status(400).json({ error: req.body });
+    res.status(400).render("login", {
+      error: errorMessage,
+    });
+    // res.status(400).json({ error: req.body });
     return;
   } else {
     req.body = {

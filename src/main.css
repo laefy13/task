@@ -40,6 +40,9 @@
 .hidden {
   display: none;
 }
+.hidden-real {
+  visibility: hidden;
+}
 .task {
   border: 1px solid black;
 }
@@ -82,7 +85,7 @@
   height: 40px;
   margin-bottom: 20px;
   padding: 0 40px 0 10px;
-  width: 100%;
+  width: 90%;
   background: #f1f1f1 no-repeat;
   transition: 100ms all linear 0s;
 
@@ -99,8 +102,8 @@
 }
 /* tables */
 .tasks-container-today {
-  width: 60vw;
-  max-width: 60vw;
+  width: 30%;
+  max-width: 30%;
   border-bottom: 3px solid black;
 }
 .tasks-container {
@@ -142,6 +145,7 @@
 }
 
 .main-container {
+  transition: 0.5s;
   margin-left: 75px;
 }
 
@@ -464,10 +468,16 @@ textarea {
   }
 }
 .add-button {
-  width: 15% !important;
+  width: 15%;
 }
 .buttons {
   width: 75%;
+  * {
+    font-size: 0.8rem;
+  }
+  .sort-button {
+    width: fit-content;
+  }
 }
 
 .tasks-misc {
@@ -492,16 +502,16 @@ textarea {
 .message {
   padding: 30px 40px;
   background-color: lightgreen;
-  right: 30;
-  bottom: 30;
+  right: 35px;
+  bottom: 30px;
   position: fixed;
-  right: -200px;
   animation: slideIn 1s forwards;
   border-radius: 10px;
 }
 .success-modal {
   position: relative;
   display: none;
+  z-index: 99999;
 }
 
 @keyframes slideIn {
@@ -583,3 +593,211 @@ html {
   width: 10px;
   margin-left: -20px;
 } */
+.loading {
+  /* display: none; */
+  position: fixed;
+  z-index: 200;
+  left: 0;
+  top: 0;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+  width: 100%;
+  height: 100%;
+  width: 100vw;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+}
+@media only screen and (max-width: 426px) {
+  /* .buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  } */
+  .add-button {
+    font-size: 0.5rem;
+  }
+  .buttons-layer {
+    flex-direction: column;
+    .addddd {
+      width: 75%;
+      /* border: 1px solid black; */
+    }
+    * {
+      font-size: 0.5rem;
+    }
+  }
+  .main-container {
+    margin-top: 5vh;
+    /* margin-left: 25px; */
+    font-size: 0.5rem;
+    width: 100%;
+    /* border: 1px solid black; */
+    padding: 0 0;
+    .main-box {
+      width: 80%;
+    }
+  }
+  .tasks {
+    p {
+      font-size: 0.5rem;
+    }
+    h1 {
+      font-size: 1rem;
+    }
+    .edit-button {
+      font-size: 0.5rem;
+      width: 33% !important;
+    }
+  }
+
+  .modal-content {
+    width: 75%;
+
+    form {
+      .flex {
+        .input {
+          width: 80%;
+        }
+        select {
+          width: fit-content;
+        }
+      }
+      .button,
+      label {
+        font-size: 0.5rem;
+        /* height: 80px; */
+      }
+    }
+  }
+  .modal {
+    width: 100vw;
+    height: 100vh;
+  }
+  .sidebar {
+    font-size: 1rem;
+
+    .openbtn {
+      font-size: 40px;
+    }
+  }
+  .success-modal {
+    font-size: 1rem;
+  }
+  .shared-user {
+    font-size: 1rem;
+  }
+
+  .tasks-container-today,
+  .tasks-container {
+    width: 100%;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  .add-button {
+    font-size: 0.1rem;
+    width: 25%;
+    height: fit-content;
+  }
+  .buttons {
+    display: flex;
+
+    padding: 16px 8px;
+    flex-wrap: wrap;
+  }
+  .buttons-layer {
+    * {
+      font-size: 1rem;
+    }
+  }
+  .main-container {
+    margin-top: 5vh;
+    margin-left: 0;
+    font-size: 1rem;
+    width: 100%;
+    /* border: 1px solid black; */
+    padding: 0 0;
+    .main-box {
+      width: 80%;
+    }
+  }
+  .tasks {
+    p {
+      font-size: 1rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+    }
+    .edit-button {
+      font-size: 1rem;
+      width: 33% !important;
+    }
+  }
+
+  .modal-content {
+    width: 75%;
+    padding: 10px 20px;
+    form {
+      /* width: 90%; */
+      /* h2 {
+        font-size: 3rem;
+      } */
+      .input,
+      .button,
+      label {
+        font-size: 1rem;
+        width: 90%;
+        /* height: 80px; */
+      }
+      .share-button,
+      .share_with {
+        width: 45%;
+      }
+      .project-list {
+        input {
+          width: 75%;
+        }
+      }
+
+      select {
+        width: fit-content;
+      }
+    }
+  }
+  .modal {
+    width: 100vw;
+    height: 100vh;
+  }
+  .sidebar {
+    font-size: 1rem;
+    width: 40px;
+
+    .openbtn {
+      font-size: 25px;
+    }
+  }
+  .success-modal {
+    font-size: 1.5rem;
+  }
+  .shared-user {
+    font-size: 1.5rem;
+  }
+
+  .tasks-container-today,
+  .tasks-container {
+    width: 90%;
+    justify-content: center;
+    align-items: center;
+  }
+  .tasks {
+    width: 150px;
+    p {
+      width: 140px;
+    }
+  }
+}
+@media only screen and (max-width: 1000px) {
+  * {
+    font-family: "Rubik", sans-serif;
+  }
+}
