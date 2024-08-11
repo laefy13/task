@@ -3,81 +3,50 @@ const app = express();
 const bodyParser = require("body-parser");
 const port = 8080;
 const session = require("express-session");
-const mariadb = require("mariadb");
-const MySQLStore = require("express-mysql-session")(session);
 const bcrypt = require("bcryptjs");
-const { Connection, Request } = require("tedious");
-const SQLSessionStore = require("./sqlSession");
+const { MongoClient, ObjectId } = require("mongodb");
+const MongoStore = require("connect-mongo");
 const middleware = require("./middleware");
 require("dotenv").config();
-// express-validator
 
-// TODO: use .env here
+const mongoUri = process.env.MONGO_URI;
+const dbName = process.env.DB_NAME;
+let db;
 
-const sql = require("mssql");
+MongoClient.connect(mongoUri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then((client) => {
+    console.log("Connected to MongoDB");
+    db = client.db(dbName);
+  })
+  .catch((error) => console.error(error));
 
-const config = {
-  user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER,
-  database: process.env.DB_NAME,
-  port: 1433,
-  options: {
-    encrypt: true,
-  },
-};
-
-const pool = new sql.ConnectionPool(config);
-
-async function connectWithRetry(retryInterval = 5000) {
-  try {
-    await pool.connect();
-    console.log("Connected to the database");
-  } catch (err) {
-    console.error("Error:", err);
-    console.log(`Retrying in ${retryInterval / 1000} seconds...`);
-    setTimeout(() => connectWithRetry(retryInterval), retryInterval);
-  }
-}
-
-async function checkConnection() {
-  try {
-    await pool.request().query("SELECT 1");
-    console.log("Connection is active");
-  } catch (err) {
-    console.error(
-      "Lost connection to the database. Attempting to reconnect..."
-    );
-    connectWithRetry();
-  }
-}
-
-connectWithRetry();
-
-setInterval(checkConnection, 900000);
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: mongoUri,
+      dbName: dbName,
+      collectionName: "sessions",
+    }),
+  })
+);
 
 app.engine("html", require("ejs").renderFile);
 app.set("view engine", "html");
 app.use(bodyParser.json());
 app.use(express.static("src"));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(
-  session({
-    secret: process.env.DB_SECRET,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 },
-    store: new SQLSessionStore(),
-    resave: false,
-    saveUninitialized: false,
-  })
-);
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send("Something went wrong!");
-});
+
+// routes
 app.get("/", middleware.validateIndexQuery, (req, res) => {
   const message = req.query.message;
   console.log(message);
-  if (req.session.user) {
+  if (req.session.userId) {
     res.redirect("/main");
   } else {
     res.render("index", { status: message ? message : "" });
@@ -85,7 +54,7 @@ app.get("/", middleware.validateIndexQuery, (req, res) => {
 });
 
 app.get("/main", middleware.requireAuth, (req, res) => {
-  const username = req.session.user.username;
+  const username = req.session.userName;
   res.render("main", { username });
 });
 
@@ -93,14 +62,16 @@ app.get("/login", middleware.checkAuth, (req, res) => {
   res.render("login", { error: "" });
 });
 
-app.post(
-  "/login",
-  [middleware.checkAuth, middleware.validateAccountInputs],
-  async (req, res) => {
-    const isLogin = await loginUser(req.body.username, req.body.password);
-    if (isLogin !== -1) {
-      req.session.user = { username: req.body.username, user_id: isLogin };
-      console.log("islogin:", isLogin);
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const user = await db
+      .collection("tblaccounts")
+      .findOne({ accountUsername: username });
+    console.log(user);
+    if (user && (await bcrypt.compare(password, user.accountPassword))) {
+      req.session.userId = user._id;
+      req.session.userName = user.accountUsername;
       res.redirect("/");
     } else {
       res.status(400).render("login", {
@@ -108,8 +79,10 @@ app.post(
       });
       return;
     }
+  } catch (error) {
+    res.status(500).send("Error logging in user");
   }
-);
+});
 
 app.get("/register", (req, res) => {
   res.render("register", { error: "" });
@@ -118,55 +91,36 @@ app.get("/register", (req, res) => {
 app.post(
   "/register",
   [middleware.checkAuth, middleware.validateAccountInputs],
-  (req, res) => {
-    middleware
-      .hashPassword(req.body.password)
-      .then((hashedPassword) => {
-        pool
-          .query(
-            `SELECT * FROM tblaccounts WHERE accountUsername = '${req.body.username}' OR accountEmail = '${req.body.email}'`
-          )
-          .then((results) => {
-            if (results.recordset.length > 0) {
-              res.status(400).render("register", {
-                error: "Username / Email already exists.",
-              });
-              return;
-            }
-            pool
-              .query(
-                `INSERT INTO tblaccounts (accountUsername, accountPassword, accountEmail) VALUES ('${req.body.username}', '${hashedPassword}', '${req.body.email}')`
-              )
-              .then(() => {
-                const payloadData = {
-                  message: "Registered successfully",
-                };
-
-                const queryParams = new URLSearchParams(payloadData).toString();
-
-                res.redirect(`/?${queryParams}`);
-                return;
-              })
-              .catch((error) => {
-                console.error(error);
-                res.status(400).render("register", {
-                  error: "Error",
-                });
-              });
-          })
-          .catch((error) => {
-            console.error(error);
-            res.status(400).render("register", {
-              error: "Error",
-            });
-          });
-      })
-      .catch((error) => {
-        console.error(error);
-        res.status(400).render("register", {
-          error: "Password hashing error",
-        });
+  async (req, res) => {
+    try {
+      const hashedPassword = await middleware.hashPassword(req.body.password);
+      const user = await db.collection("tblaccounts").findOne({
+        $or: [
+          { accountUsername: req.body.username },
+          { accountEmail: req.body.email },
+        ],
       });
+
+      if (user) {
+        res.status(400).render("register", {
+          error: "Username / Email already exists.",
+        });
+        return;
+      }
+
+      await db.collection("tblaccounts").insertOne({
+        accountUsername: req.body.username,
+        accountPassword: hashedPassword,
+        accountEmail: req.body.email,
+      });
+
+      const payloadData = { message: "Registered successfully" };
+      const queryParams = new URLSearchParams(payloadData).toString();
+      res.redirect(`/?${queryParams}`);
+    } catch (error) {
+      console.error(error);
+      res.status(400).render("register", { error: "Error" });
+    }
   }
 );
 
@@ -183,294 +137,345 @@ app.get("/logout", (req, res) => {
 });
 
 // API
-app.post("/api/tasks/update", middleware.validateTasksUpdate, (req, res) => {
-  if (validataUser(req) === 0) {
-    res.status(400).send("Invalid user id and user name");
-  }
+app.post(
+  "/api/tasks/update",
+  middleware.validateTasksUpdate,
+  async (req, res) => {
+    if (validataUser(req) === 0) {
+      res.status(400).send("Invalid user id and user name");
+      return;
+    }
 
-  pool
-    .query(
-      `UPDATE tbltasks SET taskProgress = ${req.body.taskProgress} WHERE taskId = ${req.body.taskId}`
-    )
-    .then((results) => {
+    try {
+      await db.collection("tbltasks").updateOne(
+        {
+          _id: new ObjectId(req.body.taskId),
+          accountsId: req.session.userId,
+        },
+        { $set: { taskProgress: parseInt(req.body.taskProgress, 10) } }
+      );
       res.json({ status: "success" });
-    })
-    .catch((error) => {
+    } catch (error) {
       console.error(error);
-    });
-
-  return;
-});
-app.get("/api/tasks/:projectName", middleware.validateGetTasks, (req, res) => {
-  if (validataUser(req) === 0) {
-    res.status(400).send("Invalid user id and user name");
-  }
-  updateProgress();
-  const sortOption = req.query.sort;
-  var sortBy = req.query.sortBy;
-  if (sortBy.startsWith("svg")) {
-    switch (sortBy) {
-      case "svg-desc":
-        sortBy = "taskDescription";
-        break;
-      case "svg-status":
-        sortBy = "taskProgress";
-        break;
-      case "svg-due":
-        sortBy = "taskDue";
-        break;
-      case "svg-prio":
-        sortBy = "taskPriority";
-        break;
-      default:
-        sortBy = "taskName";
-        break;
+      res.status(500).send("Error updating task");
     }
   }
-  let query1;
-  let projectName = req.params.projectName;
-  if (projectName === "0") {
-    query1 = `
-    SELECT t.taskId,t.taskName,t.taskDescription,t.taskProgress,t.taskDue,t.taskPriority,t.taskProject,a.accountUsername FROM tblsharedtables s 
-    LEFT JOIN tbltasks t ON s.taskId=t.taskId LEFT JOIN tblaccounts a ON t.accountsId=a.accountId
-    WHERE s.accountId =  ${req.session.user.user_id} AND CAST(taskDue AS DATE) `;
-  } else {
-    query1 = `SELECT * FROM tbltasks WHERE accountsId = ${req.session.user.user_id} AND taskProject = '${projectName}' AND CAST(taskDue AS DATE)`;
-  }
-  const query2 = `!= CAST(GETDATE() AS DATE) ORDER BY ${sortBy} ${sortOption.toUpperCase()};`;
-  console.log(query1);
-  console.log(`proj: ${projectName}`);
-  console.log(query1 + query2);
-  console.log(query1 + query2.slice(1));
-  Promise.all([
-    pool.query(query1 + query2),
-    pool.query(query1 + query2.slice(1)),
-  ])
-    .then(([resultsOther, resultsToday]) => {
-      res.json({
-        today: resultsToday.recordset,
-        other: resultsOther.recordset,
-      });
-    })
-    .catch((error) => {
+);
+
+app.get(
+  "/api/tasks/:projectName",
+  middleware.validateGetTasks,
+  async (req, res) => {
+    if (validataUser(req) === 0) {
+      res.status(400).send("Invalid user id and user name");
+      return;
+    }
+    updateProgress();
+
+    const sortOption = req.query.sort;
+    let sortBy = req.query.sortBy;
+    if (sortBy.startsWith("svg")) {
+      switch (sortBy) {
+        case "svg-desc":
+          sortBy = "taskDescription";
+          break;
+        case "svg-status":
+          sortBy = "taskProgress";
+          break;
+        case "svg-due":
+          sortBy = "taskDue";
+          break;
+        case "svg-prio":
+          sortBy = "taskPriority";
+          break;
+        default:
+          sortBy = "taskName";
+          break;
+      }
+    }
+
+    let projectName = req.params.projectName;
+    projectName !== 0 ? console.log("proj", projectName) : null;
+
+    let baseMatchStage;
+    if (projectName === "0")
+      baseMatchStage = [
+        {
+          $lookup: {
+            from: "tblsharedtables",
+            let: { taskId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$$taskId", "$taskId"] },
+                },
+              },
+            ],
+            as: "shared",
+          },
+        },
+        {
+          $match: {
+            shared: { $ne: [] },
+          },
+        },
+      ];
+    else
+      baseMatchStage = [
+        {
+          $match: {
+            accountsId: req.session.userId,
+            taskProject: projectName,
+          },
+        },
+      ];
+
+    let currentDate = new Date().toISOString().split("T")[0];
+
+    let matchOtherStage = {
+      $match: {
+        $expr: {
+          $ne: [{ $substr: ["$taskDue", 0, 10] }, currentDate],
+        },
+      },
+    };
+
+    let matchTodayStage = {
+      $match: {
+        $expr: {
+          $eq: [{ $substr: ["$taskDue", 0, 10] }, currentDate],
+        },
+      },
+    };
+
+    let sortStage = {
+      $sort: { [sortBy]: sortOption === "desc" ? -1 : 1 },
+    };
+    console.log(baseMatchStage);
+
+    try {
+      const [resultsOther, resultsToday] = await Promise.all([
+        db
+          .collection("tbltasks")
+          .aggregate([...baseMatchStage, matchOtherStage, sortStage])
+          .toArray(),
+
+        db
+          .collection("tbltasks")
+          .aggregate([...baseMatchStage, matchTodayStage, sortStage])
+          .toArray(),
+      ]);
+      res.json({ today: resultsToday, other: resultsOther });
+    } catch (error) {
       console.error("Error:", error);
       res.status(500).json({ error: "An error occurred" });
-    });
-});
+    }
+  }
+);
 
-app.get("/api/projects", (req, res) => {
+app.get("/api/projects", async (req, res) => {
   if (validataUser(req) === 0) {
     res.status(400).send("Invalid user id and user name");
+    return;
   }
-  pool
-    .query(
-      `SELECT p.projectName FROM  tblprojects p LEFT JOIN tblaccounts a on a.accountId=p.accountsId WHERE p.accountsId=0 OR a.accountId = ${req.session.user.user_id} `
-    )
-    .then((results) => {
-      // console.log("resuts", results);
-      res.json(results.recordset);
-    })
-    .catch((error) => {
-      console.error(error);
-    });
 
-  return;
-});
-app.post("/api/project/add", middleware.validateProjectName, (req, res) => {
-  if (validataUser(req) === 0) {
-    res.status(400).send("Invalid user id and user name");
+  try {
+    const results = await db
+      .collection("tblprojects")
+      .find({
+        $or: [{ accountsId: 0 }, { accountsId: req.session.userId }],
+      })
+      .toArray();
+    res.json(results);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error retrieving projects");
   }
-  pool
-    .query(
-      `INSERT INTO tblprojects(accountsId,  projectName) VALUES ( ${req.session.user.user_id}, '${req.body.projectName}' )`
-    )
-    .then((results) => {
+});
+
+app.post(
+  "/api/project/add",
+  middleware.validateProjectName,
+  async (req, res) => {
+    if (validataUser(req) === 0) {
+      res.status(400).send("Invalid user id and user name");
+      return;
+    }
+
+    try {
+      await db.collection("tblprojects").insertOne({
+        accountsId: req.session.userId,
+        projectName: req.body.projectName,
+      });
       res.json({ status: "Project added" });
-      console.log("added project name, resuts", results);
-      // res.json(results);
-    })
-    .catch((error) => {
+    } catch (error) {
       res.json({ error: "Project not added" });
       console.error(error);
-    });
-
-  return;
-});
+    }
+  }
+);
 
 app.post(
   "/api/project/update",
   middleware.validateUpdateProject,
-  (req, res) => {
+  async (req, res) => {
     if (validataUser(req) === 0) {
       res.status(400).send("Invalid user id and user name");
+      return;
     }
+
     let returnMessages = {};
-    let promises = [];
+    console.log("cuz", req.updateQuery);
+    try {
+      if (req.updateQuery && req.updateQuery.length > 0) {
+        for (const { filter, update } of req.updateQuery) {
+          console.log("duh", filter, update);
+          await db.collection("tblprojects").updateMany(filter, update);
 
-    if (req.updateQuery && req.updateQuery.includes("WHEN")) {
-      let updatePromise = pool
-        .query(req.updateQuery)
-        .then((results) => {
-          returnMessages["update"] = "Projects updated";
-        })
-        .catch((error) => {
-          console.log(error);
-          returnMessages["update"] = "Projects not updated";
-        });
+          await db
+            .collection("tbltasks")
+            .updateMany(
+              { taskProject: filter.projectName },
+              { $set: { taskProject: update.$set.projectName } }
+            );
+        }
+        returnMessages["update"] = "Projects updated";
+      }
 
-      promises.push(updatePromise);
+      if (req.deleteQuery.$or && req.deleteQuery.$or.length > 0) {
+        await db.collection("tblprojects").deleteMany(req.deleteQuery);
+        returnMessages["delete"] = "Projects deleted";
+      }
+
+      res.json(returnMessages);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
-
-    if (req.deleteQuery && req.deleteQuery.includes("projectName")) {
-      let deletePromise = pool
-        .query(req.deleteQuery)
-        .then((results) => {
-          returnMessages["delete"] = "Projects deleted";
-        })
-        .catch((error) => {
-          console.log(error);
-          returnMessages["delete"] = "Projects not deleted";
-        });
-
-      promises.push(deletePromise);
-    }
-    Promise.all(promises)
-      .then(() => {
-        console.log(returnMessages);
-        res.json(returnMessages);
-      })
-      .catch((error) => {
-        console.log(error);
-        res.status(500).json({ error: "Internal Server Error" });
-      });
   }
 );
 
-app.post("/api/task/delete/:taskId", middleware.validateTaskId, (req, res) => {
-  if (validataUser(req) === 0) {
-    res.status(400).send("Invalid user id and user name");
-  }
-  pool
-    .query(
-      `DELETE FROM tbltasks WHERE accountsId = ${req.session.user.user_id} AND taskId = ${req.params.taskId}`
-    )
-    .then((results) => {
-      console.log(`delete results: ${results}`);
-    })
-    .catch((error) => {
-      console.error(error);
-    });
-  console.log("task deleted");
-  res.json({ res: `task ${req.params.taskId}deleted ` });
-  return;
-});
-
-app.post("/api/task/add", middleware.validateAndSanitizeTask, (req, res) => {
-  if (validataUser(req) === 0) {
-    res.status(400).json({ error: "Invalid user id and user name" });
-  }
-  const { title, description, due_date, priority, project } = req.sanitizedBody;
-  console.log(`INSERT INTO tbltasks (accountsId, taskName, taskDescription,  taskDue, taskPriority, taskProject) VALUES (${
-    req.session.user.user_id
-  }, 
-    '${title}' , '${description}' , '${due_date.replace(
-    "T",
-    " "
-  )}' , ${priority} , '${project}')`);
-  pool
-    .query(
-      `INSERT INTO tbltasks (accountsId, taskName, taskDescription,  taskDue, taskPriority, taskProject) VALUES (${
-        req.session.user.user_id
-      }, 
-        '${title}' , '${description}' , '${due_date.replace(
-        "T",
-        " "
-      )}' , ${priority} , '${project}')`
-    )
-    .then((results) => {
-      console.log(`Added results: ${results}`);
-      res.json({
-        status: "Task added",
-      });
+app.post(
+  "/api/task/delete/:taskId",
+  middleware.validateTaskId,
+  async (req, res) => {
+    if (validataUser(req) === 0) {
+      res.status(400).send("Invalid user id and user name");
       return;
-    })
-    .catch((error) => {
-      res.json({
-        error: "Task not added",
+    }
+
+    try {
+      await db.collection("tbltasks").deleteOne({
+        accountsId: req.session.userId,
+        _id: new ObjectId(req.params.taskId),
       });
+      res.json({ res: `task ${req.params.taskId} deleted` });
+    } catch (error) {
       console.error(error);
-    });
-  console.log("task addedd");
-});
-
-app.post("/api/task/update", middleware.validateAndSanitizeTask, (req, res) => {
-  if (validataUser(req) === 0) {
-    res.status(400).json({ error: "Invalid user id and user name" });
+      res.status(500).send("Error deleting task");
+    }
   }
+);
 
-  const { title, description, due_date, priority, project, taskId } =
-    req.sanitizedBody;
+app.post(
+  "/api/task/add",
+  middleware.validateAndSanitizeTask,
+  async (req, res) => {
+    if (validataUser(req) === 0) {
+      res.status(400).json({ error: "Invalid user id and user name" });
+      return;
+    }
 
-  pool
-    .query(
-      `UPDATE tbltasks SET taskName = '${title}', taskDescription = '${description}', taskDue = '${due_date.replace(
-        "T",
-        " "
-      )}', taskPriority = ${priority}, taskProject = '${project}' WHERE taskId = ${taskId}`
-    )
-    .then((results) => {
-      console.log(`updated results: ${results}`);
-      res.json({ status: "Task updated" });
-    })
-    .catch((error) => {
+    const { title, description, due_date, priority, project } =
+      req.sanitizedBody;
+
+    try {
+      await db.collection("tbltasks").insertOne({
+        accountsId: req.session.userId,
+        taskName: title,
+        taskDescription: description,
+        taskDue: new Date(due_date),
+        taskPriority: parseInt(priority, 10),
+        taskProject: project,
+        taskProgress: 0,
+      });
+      res.json({ status: "Task added" });
+    } catch (error) {
+      res.json({ error: "Task not added" });
       console.error(error);
-      res.status(400).json({ error: "Task not updated" });
-    });
-});
+    }
+  }
+);
 
-//account endpoints
+app.post(
+  "/api/task/update",
+  middleware.validateAndSanitizeTask,
+  async (req, res) => {
+    if (validataUser(req) === 0) {
+      res.status(400).json({ error: "Invalid user id and user name" });
+      return;
+    }
+
+    const { title, description, due_date, priority, project, taskId } =
+      req.sanitizedBody;
+
+    try {
+      await db.collection("tbltasks").updateOne(
+        { _id: new ObjectId(taskId), accountsId: req.session.userId },
+        {
+          $set: {
+            taskName: title,
+            taskDescription: description,
+            taskDue: new Date(due_date),
+            taskPriority: parseInt(priority, 10),
+            taskProject: project,
+          },
+        }
+      );
+      res.json({ status: "Task updated" });
+    } catch (error) {
+      res.json({ error: "Task not updated" });
+      console.error(error);
+    }
+  }
+);
 app.post(
   "/api/account/update",
   middleware.validateUpdateAccount,
   async (req, res) => {
     if (validataUser(req) === 0) {
       res.status(400).send("Invalid user id and user name");
-    }
-    const userId = await loginUser(
-      req.session.user.username,
-      req.body.current_password
-    );
-    // console.log(req.session.user.username, req.body.current_password, userId);
-    if (userId === -1) {
-      res.json({ error: "Username and password does not match" });
       return;
-    } else {
-      let query = "UPDATE tblaccounts SET ";
-      let username;
-      // console.log(req.body);
-      if (req.body.username) {
-        username = req.body.username;
-        query += ` accountUsername = '${username}',`;
+    }
+
+    try {
+      const userId = await loginUser(
+        req.session.userName,
+        req.body.current_password
+      );
+      if (userId === -1) {
+        res.json({ error: "Username and password does not match" });
+        return;
       }
-      if (req.body.email) query += ` accountEmail = '${req.body.email}',`;
-      if (req.body.password) {
-        const password = req.body.password;
-        query += ` accountPassword = '${password}',`;
-      }
-      query =
-        query.slice(0, -1) + ` WHERE accountId = ${req.session.user.user_id}`;
-      console.log(query);
-      pool
-        .query(query)
-        .then((results) => {
-          // console.log(`updated results: ${results}`);
-          // console.log(username, " asda");
-          if (username) req.session.user.username = username;
-          res.json({ status: "success" });
-        })
-        .catch((error) => {
-          console.error(error);
-        });
+
+      let updateFields = {};
+      if (req.body.username) updateFields.accountUsername = req.body.username;
+      if (req.body.email) updateFields.accountEmail = req.body.email;
+      if (req.body.password) updateFields.accountPassword = req.body.password;
+
+      await db
+        .collection("tblaccounts")
+        .updateOne(
+          { _id: new ObjectId(req.session.userId) },
+          { $set: updateFields }
+        );
+
+      if (req.body.username) req.session.userName = req.body.username;
+
+      res.json({ status: "success" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
   }
 );
@@ -481,142 +486,161 @@ app.post(
   async (req, res) => {
     if (validataUser(req) === 0) {
       res.status(400).send("Invalid user id and user name");
-    }
-    const userId = await loginUser(
-      req.session.user.username,
-      req.body.current_password
-    );
-    // console.log(req.session.user.username, req.body.current_password, userId);
-    if (userId === -1) {
-      res.json({ error: "Username and password does not match" });
       return;
-    } else {
-      pool
-        .query(`DELETE FROM tblaccounts WHERE accountId = ${userId}`)
-        .then((results) => {
-          console.log(`deleted account: ${results}`);
-          res.json({ status: "success" });
-        })
-        .catch((error) => {
-          res.json({ error: "Username and password does not match" });
-          console.log(error);
-        });
+    }
+
+    try {
+      const userId = await loginUser(
+        req.session.userName,
+        req.body.current_password
+      );
+      if (userId === -1) {
+        res.json({ error: "Username and password does not match" });
+        return;
+      }
+
+      const result = await db
+        .collection("tblaccounts")
+        .deleteOne({ _id: new ObjectId(userId) });
+
+      if (result.deletedCount === 1) {
+        res.json({ status: "success" });
+      } else {
+        res.status(500).json({ status: "Cannot delete account" });
+      }
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Internal Server Error" });
     }
   }
 );
 
-app.post("/api/share", middleware.validateIds, (req, res) => {
+app.post("/api/share", middleware.validateIds, async (req, res) => {
   if (validataUser(req) === 0) {
     res.status(400).send("Invalid user id and user name");
+    return;
   }
-  pool
-    .query(
-      `INSERT INTO tblsharedtables (accountId,taskId) VALUES (${req.body.accountId},${req.body.taskId})`
-    )
-    .then((results) => {
-      console.log(`shared results: ${results}`);
-      res.json({ status: "success" });
-    })
-    .catch((error) => {
-      res.json({ error: "Task not shared" });
+
+  try {
+    await db.collection("tblsharedtables").insertOne({
+      accountId: new ObjectId(req.body.accountId),
+      taskId: new ObjectId(req.body.taskId),
     });
+    res.json({ status: "success" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error sharing task");
+  }
 });
 
-app.post("/api/share/delete", middleware.validateIds, (req, res) => {
-  console.log("buh");
+app.post("/api/share/delete", middleware.validateIds, async (req, res) => {
   if (validataUser(req) === 0) {
     res.status(400).send("Invalid user id and user name");
+    return;
   }
-  pool
-    .query(
-      `DELETE FROM tblsharedtables WHERE taskId = ${req.body.taskId} AND accountId = ${req.body.accountId}`
-    )
-    .then((results) => {
-      console.log(`delete results: ${results}`);
-      res.json({ status: "Account removed from shared task" });
-    })
-    .catch((error) => {
-      res.json({ error: "Account not removed from shared task" });
-      console.error(error);
+
+  try {
+    await db.collection("tblsharedtables").deleteOne({
+      taskId: new ObjectId(req.body.taskId),
+      accountId: new ObjectId(req.body.accountId),
     });
-  console.log("task deleted");
-  return;
+    res.json({ status: "Account removed from shared task" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error removing account from shared task");
+  }
 });
 
-app.get("/api/users/:taskId", middleware.validateTaskId, (req, res) => {
+app.get("/api/users/:taskId", middleware.validateTaskId, async (req, res) => {
   if (validataUser(req) === 0) {
     res.status(400).send("Invalid user id and user name");
+    return;
   }
-  query = `SELECT a.accountId , a.accountUsername, s.taskId
-  FROM tblaccounts a 
-  LEFT JOIN tblsharedtables s ON a.accountId = s.accountId AND s.taskId = ${req.params.taskId}`;
-  Promise.all([
-    pool.query(
-      query +
-        ` WHERE s.taskId IS NULL AND a.accountId != ${req.session.user.user_id};`
-    ),
-    pool.query(query + ` WHERE s.taskId = ${req.params.taskId};`),
-  ])
-    .then(([notShared, shared]) => {
-      res.json({ notShared: notShared, shared: shared });
-    })
-    .catch((error) => {
-      console.error("Error:", error);
-      res.status(500).json({ error: "An error occurred" });
-    });
+
+  try {
+    const query = [
+      {
+        $lookup: {
+          from: "tblsharedtables",
+          let: { accountId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$$accountId", "$accountId"] },
+                taskId: new ObjectId(req.params.taskId),
+              },
+            },
+          ],
+          as: "shared",
+        },
+      },
+    ];
+
+    console.log(req.params.taskId);
+    const [notShared, shared] = await Promise.all([
+      db
+        .collection("tblaccounts")
+        .aggregate([
+          ...query,
+          {
+            $match: {
+              $expr: { $ne: ["$_id", new ObjectId(req.session.userId)] },
+              shared: { $eq: [] },
+            },
+          },
+        ])
+        .toArray(),
+      db
+        .collection("tblaccounts")
+        .aggregate([
+          ...query,
+          {
+            $match: {
+              $expr: { $ne: ["$_id", new ObjectId(req.session.userId)] },
+              shared: { $ne: [] },
+            },
+          },
+        ])
+        .toArray(),
+    ]);
+    console.log("shared", shared, notShared);
+    res.json({ notShared: notShared, shared: shared });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "An error occurred" });
+  }
 });
 
 function validataUser(req) {
-  pool
-    .query(
-      `SELECT * FROM tblaccounts WHERE accountUsername = '${req.session.user.username}' OR accountId = ${req.session.user.user_id}`
-    )
-    .then((results) => {
-      if (results.recordset.length < 0) return 0;
-      else return 1;
-    })
-    .catch((error) => {
-      console.error(error);
-    });
-}
-
-function loginUser(username, password) {
-  return new Promise((resolve, reject) => {
-    pool
-      .query(`SELECT * FROM tblaccounts WHERE accountUsername = '${username}' `)
-      .then((results) => {
-        if (results.recordset.length > 0) {
-          const user = results.recordset[0];
-          bcrypt.compare(password, user.accountPassword, (err, isMatch) => {
-            if (err) {
-              console.log("not match");
-              return reject(err);
-            }
-            if (isMatch) {
-              resolve(user.accountId);
-            } else {
-              console.log("not match");
-              resolve(-1);
-            }
-          });
-        } else {
-          console.log("not match", username, results);
-          resolve(-1);
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        reject(error);
-      });
+  return db.collection("tblaccounts").countDocuments({
+    $or: [
+      { accountUsername: req.session.userName },
+      { _id: new ObjectId(req.session.userId) },
+    ],
   });
 }
 
+async function loginUser(username, password) {
+  try {
+    const user = await db
+      .collection("tblaccounts")
+      .findOne({ accountUsername: username });
+    if (!user) return -1;
+    const isMatch = await bcrypt.compare(password, user.accountPassword);
+    return isMatch ? user._id : -1;
+  } catch (error) {
+    console.error(error);
+    return -1;
+  }
+}
+
 function updateProgress() {
-  pool.query("UPDATE tbltasks SET taskProgress = 2 WHERE taskDue < GETDATE();");
+  db.collection("tbltasks").updateMany(
+    { taskDue: { $lt: new Date().toISOString().split("T")[0] } },
+    { $set: { taskProgress: "Overdue" } }
+  );
 }
 
 app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  console.log(`Listening on port ${port}`);
 });
-
-module.exports = app;

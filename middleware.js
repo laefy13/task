@@ -1,6 +1,8 @@
 const xss = require("xss");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
+const { ObjectId } = require("mongodb");
+
 const hashPassword = async (plainPassword) => {
   const saltRounds = 10;
   try {
@@ -25,7 +27,7 @@ const comparePasswords = async (plainPassword, hashedPassword) => {
 const validateTaskId = (req, res, next) => {
   const rawTaskId = req.params.taskId;
 
-  if (validator.isInt(rawTaskId)) {
+  if (ObjectId.isValid(rawTaskId)) {
     req.params.taskId = sanitizeInput(rawTaskId);
     next();
   } else {
@@ -37,9 +39,9 @@ const validateProjectName = (req, res, next) => {
   const projectName = req.body.projectName;
   if (projectName === null || projectName === undefined) {
     return res.status(400).json({ error: "Project Name is required" });
-  } else if (typeof projectName !== "string")
+  } else if (typeof projectName !== "string") {
     return res.status(400).json({ error: "Invalid input Project Name" });
-  else {
+  } else {
     req.body.projectName = sanitizeInput(projectName);
     next();
   }
@@ -68,19 +70,19 @@ const validateAndSanitizeTask = (req, res, next) => {
     !validator.isInt(priority.toString()) ||
     !project ||
     typeof project !== "string" ||
-    (taskId && !validator.isInt(taskId.toString()))
+    (taskId && !ObjectId.isValid(taskId))
   ) {
     return res.status(400).json({ error: "Invalid input data" });
   }
-
   req.sanitizedBody = {
     title: sanitizeInput(title),
     description: sanitizeInput(description),
     due_date: sanitizeInput(due_date),
-    priority: sanitizeInput(priority.toString()),
+    priority: sanitizeInput(priority),
     project: sanitizeInput(project),
-    taskId: taskId ? sanitizeInput(taskId.toString()) : null,
+    taskId: taskId ? sanitizeInput(taskId) : null,
   };
+  console.log(req.sanitizedBody);
 
   next();
 };
@@ -105,10 +107,7 @@ const validateGetTasks = (req, res, next) => {
 
 const validateTasksUpdate = (req, res, next) => {
   const { taskProgress, taskId } = req.body;
-  if (
-    !validator.isInt(taskProgress.toString()) ||
-    !validator.isInt(taskId.toString())
-  ) {
+  if (!validator.isInt(taskProgress.toString()) || !ObjectId.isValid(taskId)) {
     return res.status(400).json({ error: "Invalid input data" });
   } else {
     req.body = {
@@ -122,53 +121,38 @@ const validateTasksUpdate = (req, res, next) => {
 const validateUpdateProject = (req, res, next) => {
   const { inputs } = req.body;
   const sanitizedInputs = [];
-  const userId = req.session.user.user_id;
+  const userId = req.session.userId;
 
-  let deleteQuery = `DELETE FROM tblprojects WHERE accountsId = ${userId} AND (`;
-  let updateQuery = `UPDATE tblprojects
-    SET projectName = CASE `;
+  let deleteQuery = { accountsId: userId, $or: [] };
+  let updateQuery = [];
 
   if (!Array.isArray(inputs)) {
     return res.status(400).json({ error: "Invalid input data" });
   }
-  req.body = { inputs: [] };
+
   inputs.forEach((input) => {
-    let temp;
     const { title, checked, originalValue } = input;
-    console.log(title, checked, originalValue, input);
+
     if (originalValue == "Main") return;
 
-    if (typeof originalValue !== "string") {
-      console.log("input not string");
-      return res.status(400).json({ error: "Invalid input data" });
-    }
+    const temp = sanitizeInput(originalValue);
 
-    temp = sanitizeInput(originalValue);
-
-    if (checked && checked != "true") {
+    if (checked && checked !== "true") {
       return res.status(400).json({ error: "Input not bool" });
     } else if (checked) {
-      deleteQuery += `projectName = '${temp}' OR `;
-      // temp["checked"] = true;
-      // sanitizedInputs.push(temp);
+      deleteQuery.$or.push({ accountsId: userId, projectName: temp });
       return;
     }
 
     if (title && typeof title !== "string") {
       return res.status(400).json({ error: "Invalid input data" });
     } else if (title) {
-      updateQuery += `WHEN accountsId = ${userId} AND projectName = '${temp}' THEN '${title}'`;
-      // temp["title"] = sanitizeInput(title);
+      updateQuery.push({
+        filter: { accountsId: userId, projectName: temp },
+        update: { $set: { projectName: sanitizeInput(title) } },
+      });
     }
-
-    // if (checked)
-    // sanitizedInputs.push(temp);
   });
-
-  deleteQuery = deleteQuery.slice(0, -3) + ")";
-  updateQuery += " ELSE projectName END";
-  // req.body.inputs = sanitizedInputs;
-  // console.log(req.body);
   console.log(updateQuery);
   console.log(deleteQuery);
   req.updateQuery = updateQuery;
@@ -178,7 +162,7 @@ const validateUpdateProject = (req, res, next) => {
 
 const requireAuth = (req, res, next) => {
   console.log("auth check", req.session);
-  if (req.session.user) {
+  if (req.session.userId) {
     next();
   } else {
     res.redirect("/");
@@ -187,7 +171,7 @@ const requireAuth = (req, res, next) => {
 
 const checkAuth = (req, res, next) => {
   console.log("auth check", req.session);
-  if (req.session.user) {
+  if (req.session.userId) {
     res.redirect("/main");
   } else {
     next();
@@ -219,7 +203,6 @@ const validateAccountInputs = (req, res, next) => {
     res.status(400).render("login", {
       error: errorMessage,
     });
-    // res.status(400).json({ error: req.body });
     return;
   } else {
     req.body = {
@@ -312,10 +295,7 @@ const validateIds = (req, res, next) => {
     taskId === undefined
   ) {
     return res.status(400).json({ error: "Missing Inputs" });
-  } else if (
-    !validator.isInt(accountId.toString()) ||
-    !validator.isInt(taskId.toString())
-  ) {
+  } else if (!ObjectId.isValid(accountId) || !ObjectId.isValid(taskId)) {
     return res.status(400).json({ error: "Input error" });
   } else {
     req.body = {
@@ -329,6 +309,7 @@ const validateIds = (req, res, next) => {
 const sanitizeInput = (input) => {
   return xss(input);
 };
+
 module.exports = {
   hashPassword,
   comparePasswords,

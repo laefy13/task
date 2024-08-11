@@ -17,27 +17,27 @@ function taskGenerator(task) {
   const taskString = encodeURIComponent(JSON.stringify(task));
   return `
   <div class='tasks fadeIn' data-task-id='${
-    task.taskId
+    task._id
   }' style='background-color: ${getColor(task.taskPriority)};'> 
     ${task.accountUsername ? task.accountUsername + "'s task" : ""}
     <h1>${task.taskName}</h1>
     <p>${task.taskDescription}</p> 
     <div class='tasks-footer flex flex-row space-between'>
       <div class='info-button' onclick='openMoreInfo("${
-        task.taskId
+        task._id
       }")'><svg class="w-6 h-6 text-gray-800 dark:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
       <path stroke="currentColor" stroke-linecap="round" stroke-width="5" d="M6 12h.01m6 0h.01m5.99 0h.01"/>
     </svg>
     </div>
       
       <div class='flex justify-center items-center'>
-        <label id="labelProgress_${task.taskId}" for="cbProgress_${
-    task.taskId
+        <label id="labelProgress_${task._id}" for="cbProgress_${
+    task._id
   }" class="checkbox-container">${progressString(
     task.taskProgress
   )}</label><input type="checkbox" id="cbProgress_${
-    task.taskId
-  }" onclick="updateProgress(this,${task.taskId})" ${
+    task._id
+  }" onclick="updateProgress(this,'${task._id}')" ${
     task.taskProgress == 1
       ? "checked"
       : task.taskProgress == 0
@@ -46,24 +46,24 @@ function taskGenerator(task) {
   }></input>
       </div>
       </div>
-    <div class='hidden-info flex flex-col' info-id='${task.taskId}'>
+    <div class='hidden-info flex flex-col' info-id='${task._id}'>
       
       <div class='flex flex-col ' >
       <div class='flex flex-row space-between' >
       <h4>Due:</h4> <span class="close" onclick='openMoreInfo("${
-        task.taskId
+        task._id
       }")'>&times;</span></div>${stringDateTime(task.taskDue)}</div>
       <div class='flex flex-row mb-10'>
         <div><h4>Priority:</h4> ${stringPriority(task.taskPriority)}</div>
       </div>
       <div class='flex flex-row'>
         <button class='edit-button' onclick='openEditTaskModal("${taskString}")'>Edit</button>
-        <button class='edit-button' onclick='openShareModal(${
-          task.taskId
-        })'>Share</button>
-        <button class='edit-button' onclick='deleteTask(${
-          task.taskId
-        })'>Delete</button>
+        <button class='edit-button' onclick='openShareModal("${
+          task._id
+        }")'>Share</button>
+        <button class='edit-button' onclick='deleteTask("${
+          task._id
+        }")'>Delete</button>
       </div>
       
     
@@ -71,24 +71,6 @@ function taskGenerator(task) {
     </div>
   </div>
   `;
-
-  return `<tr class='task-row fadeIn' data-task-id='${task.taskId}'><td>${
-    task.taskName
-  }</td><td>${task.taskDescription}</td>
-    <td><label id="labelProgress_${task.taskId}" for="cbProgress_${
-    task.taskId
-  }" class="checkbox-container">${progressString(
-    task.taskProgress
-  )}</label><input type="checkbox" id="cbProgress_${
-    task.taskId
-  }" onclick="updateProgress(this,${task.taskId})" ${
-    task.taskProgress == 1
-      ? "checked"
-      : task.taskProgress == 0
-      ? ""
-      : "disabled"
-  }></input></td><td>${task.taskDue}</td><td>${task.taskPriority}</td>
-    <td><button class='delete-button' onclick='openEditTaskModal("${taskString}")'>Edit Task</button></td></tr>`;
 }
 function stringDateTime(date) {
   return new Date(date).toLocaleString(navigator.language, {
@@ -144,7 +126,7 @@ function updateTaskModal(title, task, func) {
   document.getElementById("task-button").onclick = func;
   document
     .getElementById("projectModal")
-    .setAttribute("data-task-id", task.taskId);
+    .setAttribute("data-task-id", task._id);
 }
 function deleteTask(task_id) {
   // console.log("delete");
@@ -475,19 +457,20 @@ function getUsers(taskId) {
       sharedList = document.getElementById("current_shared");
       accountIdSelect.innerHTML = "";
       sharedList.innerHTML = "";
-
-      data.notShared.recordset.forEach((account) => {
+      // console.log(data);
+      data.notShared.forEach((account) => {
         accountIdSelect.options[accountIdSelect.options.length] = new Option(
           account.accountUsername,
-          account.accountId
+          account._id
         );
       });
-      data.shared.recordset.forEach((account) => {
+      data.shared.forEach((account) => {
+        // console.log(account.shared);
         sharedList.innerHTML += `<div class="shared-user flex space-between "><li>${
           account.accountUsername
-        }</li><button onclick="removeUser(event,${account.accountId},${
-          account.taskId
-        })" class="remove-user">${trashSVG()}</button></div>`;
+        }</li><button onclick="removeUser(event,'${account._id}','${
+          account.shared[0].taskId
+        }')" class="remove-user">${trashSVG()}</button></div>`;
       });
     } else {
       // console.log("hu");
@@ -621,6 +604,7 @@ function sortButton(sortName) {
 }
 
 function updateProgress(checkbox, taskId) {
+  // console.log("update", taskId);
   var taskProgress = 0;
   if (checkbox.checked) {
     taskProgress = 1;
